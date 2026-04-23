@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>見貼り番</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+<style>
+body {
+  font-family: sans-serif;
+  margin: 12px;
+  background: #f8f8f8;
+}
+
+h1, h2 {
+  margin-top: 0;
+}
+
+button {
+  padding: 12px 16px;
+  font-size: 16px;
+  margin: 6px 4px;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 1px solid #bbb;
+  background: #fff;
+}
+
+input, select {
+  padding: 10px;
+  font-size: 16px;
+  margin-bottom: 10px;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+div {
+  margin-bottom: 10px;
+}
+
+.screen {
+  display: none;
+}
+
+.cardBox {
+  margin-bottom: 15px;
+  padding: 12px;
+  border: 1px solid #ccc;
+  border-radius: 10px;
+  background: #fff;
+}
+
+#menuScreen {
+  text-align: center;
+}
+
+.menuButton {
+  width: 100%;
+  max-width: 320px;
+  padding: 18px 16px;
+  font-size: 18px;
+  margin: 10px auto;
+  display: block;
+}
+
+.topBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+#mapContainer {
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+#map {
+  height: 350px;
+}
+
+#toastMessage {
+  visibility: hidden;
+  min-width: 200px;
+  background: #333;
+  color: #fff;
+  text-align: center;
+  border-radius: 8px;
+  padding: 12px 16px;
+  position: fixed;
+  left: 50%;
+  bottom: 80px;
+  transform: translateX(-50%);
+  z-index: 10000;
+  font-size: 14px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  opacity: 0;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+#scrollTopButton {
+  display: none;
+  position: fixed;
+  right: 16px;
+  bottom: 20px;
+  z-index: 9999;
+  padding: 10px 14px;
+  font-size: 14px;
+  border: none;
+  border-radius: 8px;
+  background: #333;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+.recordBlockTitle {
+  font-weight: bold;
+  margin-bottom: 8px;
+  font-size: 15px;
+}
+
+.subNote {
+  font-size: 13px;
+  color: #666;
+  margin-top: 4px;
+  line-height: 1.5;
+}
+
+.primaryButton {
+  background: #e8f5e9;
+  border: 1px solid #9ccc65;
+}
+
+.secondaryButton {
+  background: #f5f5f5;
+}
+
+.statusBadge {
+  display: inline-block;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #eef3ff;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+#appHeader {
+  margin-bottom: 10px;
+}
+
+#appTitle {
+  font-size: 20px;
+  font-weight: bold;
+}
+
+#appSubTitle {
+  font-size: 12px;
+  color: #666;
+}
+
+</style>
+</head>
+<body>
+
+<div id="appHeader">
+  <div id="appTitle">見貼り番</div>
+  <div id="appSubTitle">ポスター掲示場所管理アプリ</div>
+</div>
+
+<div id="menuScreen" class="screen">
+  <div class="cardBox">
+    <h2>メニュー</h2>
+    <button class="menuButton" onclick="showScreen('record')">記録する</button>
+    <button class="menuButton" onclick="showScreen('list')">記録一覧</button>
+    <button class="menuButton" onclick="showScreen('manage')">管理画面</button>
+    <button class="menuButton" onclick="exitApp()">終了</button>
+  </div>
+</div>
+
+<div id="recordScreen" class="screen">
+  <div class="topBar">
+    <button onclick="showScreen('menu')">← メニューへ戻る</button>
+    <div><b>記録画面</b></div>
+  </div>
+
+  <div class="cardBox">
+    <div class="recordBlockTitle">現在の状態</div>
+    <div id="recordModeLabel" class="statusBadge">新規記録</div>
+    <div class="subNote">
+      編集ボタンから入った場合は「編集中」と表示されます。
+    </div>
+  </div>
+
+  <div id="recordSection" class="cardBox">
+    <div class="recordBlockTitle">① 基本情報</div>
+
+    <div style="margin-bottom:12px;">
+      <input type="text" id="memoInput" placeholder="場所や目印などのメモを入力" style="width:100%;">
+    </div>
+
+    <div style="margin-bottom:12px;">
+      <select id="statusInput" style="width:100%;">
+        <option value="未確認">未確認</option>
+        <option value="掲示済">掲示済</option>
+        <option value="要対応">要対応</option>
+      </select>
+        <div class="subNote">
+        記録の状況を選びます。あとで一覧画面の絞り込みにも使います。
+        </div>
+    </div>
+
+    <div style="margin-bottom:12px;">
+      <button class="secondaryButton" onclick="document.getElementById('imageInput').click()">📷 画像を選択</button>
+      <input type="file" id="imageInput" accept="image/*" style="display:none;">
+      <div class="subNote">必要に応じて写真を追加します。</div>
+    </div>
+  </div>
+
+  <div class="cardBox">
+    <div class="recordBlockTitle">② 位置情報</div>
+
+    <label style="display:block; margin:8px 0;">
+      <input type="checkbox" id="updateLocationCheck">
+      位置情報も更新する
+    </label>
+
+    <div class="subNote">
+      通常の編集ではチェックなしで保存すると元の位置を維持します。<br>
+      位置も直したい場合はチェックを入れるか、地図をタップして位置を調整してください。
+    </div>
+
+    <div style="margin-top:10px;">
+      <button class="secondaryButton" onclick="jumpToCurrentLocation()">現在地</button>
+    </div>
+  </div>
+
+  <div class="cardBox">
+    <div class="recordBlockTitle">③ 保存・データ操作</div>
+
+    <div style="margin-bottom:10px;">
+      <button class="primaryButton" onclick="getLocation()">保存 / 更新</button>
+    </div>
+
+  </div>
+
+  <div class="cardBox">
+    <div class="recordBlockTitle">④ 地図</div>
+    <div class="subNote">
+      編集中は地図をタップして位置を修正できます。
+    </div>
+
+    <div id="mapContainer">
+      <div id="map"></div>
+    </div>
+  </div>
+</div>
+
+<div id="listScreen" class="screen">
+  <div class="topBar">
+    <button onclick="showScreen('menu')">← メニューへ戻る</button>
+    <div><b>一覧画面</b></div>
+  </div>
+
+  <div id="listSection" class="cardBox">
+    <div id="statusSummary" style="margin-bottom:10px; font-weight:bold;"></div>
+
+    <div style="margin-bottom:15px;">
+      <label>表示フィルター：</label>
+      <select id="filterStatus" onchange="resetAndRenderHistory()">
+        <option value="all">すべて</option>
+        <option value="未確認">未確認</option>
+        <option value="掲示済">掲示済</option>
+        <option value="要対応">要対応</option>
+      </select>
+    </div>
+
+    <div style="margin-bottom:15px;">
+      <input type="text" id="searchInput" placeholder="🔍 場所などのメモから検索" oninput="resetAndRenderHistory()" style="width:100%;">
+    </div>
+
+    <div id="displayInfo" style="margin-bottom:10px; font-size:14px; color:#555;"></div>
+
+    <h2>記録一覧</h2>
+    <ul id="history" style="list-style:none; padding:0;"></ul>
+
+    <div id="loadMoreArea" style="margin-top:10px;">
+      <button id="loadMoreButton" onclick="loadMoreRecords()" style="display:none;">
+        さらに20件表示
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="manageScreen" class="screen">
+  <div class="topBar">
+    <button onclick="showScreen('menu')">← メニューへ戻る</button>
+    <div><b>管理画面</b></div>
+  </div>
+
+  <div class="cardBox">
+    <div class="recordBlockTitle">CSV</div>
+    <div style="margin-bottom:10px;">
+      <button class="secondaryButton" onclick="exportCSV()">CSV出力</button>
+      <button class="secondaryButton" onclick="document.getElementById('csvInput').click()">CSV取込</button>
+      <input type="file" id="csvInput" onchange="importCSV(event)" style="display:none;">
+    </div>
+    <div class="subNote">
+      CSV形式での出力や取込を行います。
+    </div>
+  </div>
+
+  <div class="cardBox">
+    <div class="recordBlockTitle">バックアップ</div>
+    <div style="margin-bottom:10px;">
+      <button class="secondaryButton" onclick="backupData()">データ保存</button>
+      <button class="secondaryButton" onclick="document.getElementById('restoreInput').click()">データ復元</button>
+      <input type="file" id="restoreInput" onchange="restoreData(event)" style="display:none;">
+    </div>
+    <div class="subNote">
+      JSON形式でデータ保存・復元を行います。
+    </div>
+  </div>
+</div>
+
+<button id="scrollTopButton" onclick="scrollToTop()">最上部へ</button>
+<div id="toastMessage"></div>
+
+<script>
+let editIndex = null;
+let returnToScreenAfterSave = "record";
+let currentLat = null;
+let currentLng = null;
+let tempMarker = null;
+
+let displayCount = 20;
+const DISPLAY_STEP = 20;
+
+const ADDRESS_CACHE_KEY = "addressCacheV1";
+let addressCache = JSON.parse(localStorage.getItem(ADDRESS_CACHE_KEY) || "{}");
+
+let map = L.map('map').setView([35.681236, 139.767125], 13);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© OpenStreetMap contributors'
+}).addTo(map);
+
+let records = JSON.parse(localStorage.getItem("records")) || [];
+
+const redIcon = new L.Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
+  shadowUrl: 'https://unpkg.com/leaflet/dist/images/marker-shadow.png'
+});
+
+const greenIcon = new L.Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png',
+  shadowUrl: 'https://unpkg.com/leaflet/dist/images/marker-shadow.png'
+});
+
+const greyIcon = new L.Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-grey.png',
+  shadowUrl: 'https://unpkg.com/leaflet/dist/images/marker-shadow.png'
+});
+
+window.onload = function(){
+  cleanInvalidRecords();
+  renderHistory();
+  showScreen("menu");
+  moveMapToCurrentLocation();
+  updateRecordModeLabel(false);
+};
+
+function showScreen(screen){
+  const menuScreen = document.getElementById("menuScreen");
+  const recordScreen = document.getElementById("recordScreen");
+  const listScreen = document.getElementById("listScreen");
+  const manageScreen = document.getElementById("manageScreen");
+
+  if(menuScreen) menuScreen.style.display = "none";
+  if(recordScreen) recordScreen.style.display = "none";
+  if(listScreen) listScreen.style.display = "none";
+  if(manageScreen) manageScreen.style.display = "none";
+
+  if(screen === "menu" && menuScreen){
+    menuScreen.style.display = "block";
+  } else if(screen === "record" && recordScreen){
+    recordScreen.style.display = "block";
+    setTimeout(function(){
+      map.invalidateSize();
+    }, 100);
+  } else if(screen === "list" && listScreen){
+    listScreen.style.display = "block";
+  } else if(screen === "manage" && manageScreen){
+    manageScreen.style.display = "block";
+  }
+}
+
+function normalizeStatus(status){
+  if(!status) return "未確認";
+
+  const s = status.trim();
+
+  if(s === "掲示済み") return "掲示済";
+  if(s === "掲示済") return "掲示済";
+  if(s === "要対応") return "要対応";
+
+  return "未確認";
+}
+
+function cleanInvalidRecords(){
+  const before = records.length;
+
+  records = records.filter(r =>
+    r &&
+    typeof r === "object" &&
+    typeof r.latitude === "number" &&
+    typeof r.longitude === "number" &&
+    !isNaN(r.latitude) &&
+    !isNaN(r.longitude)
+  );
+
+  const after = records.length;
+
+  if(before !== after){
+    console.log("不正データ削除:", before - after, "件");
+    localStorage.setItem("records", JSON.stringify(records));
+  }
+}
+
+function updateRecordModeLabel(isEdit){
+  const label = document.getElementById("recordModeLabel");
+  if(!label) return;
+
+  if(isEdit){
+    label.textContent = "編集中";
+    label.style.background = "#fff3cd";
+  } else {
+    label.textContent = "新規記録";
+    label.style.background = "#eef3ff";
+  }
+}
+
+function moveMapToCurrentLocation() {
+  if(!navigator.geolocation) return;
+
+  navigator.geolocation.getCurrentPosition(
+    function(position){
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+
+      if(
+        lat === null || lng === null ||
+        typeof lat !== "number" || typeof lng !== "number" ||
+        isNaN(lat) || isNaN(lng)
+      ){
+        return;
+      }
+
+      map.setView([lat, lng], 16);
+    },
+    function(){
+      console.warn("現在地の取得に失敗しました");
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0
+    }
+  );
+}
+
+function jumpToCurrentLocation() {
+  if(!navigator.geolocation){
+    alert("この端末では位置情報が利用できません");
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    function(position){
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+
+      if(
+        lat === null || lng === null ||
+        typeof lat !== "number" || typeof lng !== "number" ||
+        isNaN(lat) || isNaN(lng)
+      ){
+        alert("位置情報の取得に失敗しました");
+        return;
+      }
+
+      map.setView([lat, lng], 16);
+      showToast("現在地へ移動しました");
+    },
+    function(){
+      alert("現在地の取得に失敗しました");
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0
+    }
+  );
+}
+
+function getAddressCacheKey(lat, lng){
+  return lat.toFixed(6) + "," + lng.toFixed(6);
+}
+
+function saveAddressCache(){
+  localStorage.setItem(ADDRESS_CACHE_KEY, JSON.stringify(addressCache));
+}
+
+async function reverseGeocode(lat, lng){
+  const cacheKey = getAddressCacheKey(lat, lng);
+
+  if(addressCache[cacheKey]){
+    return addressCache[cacheKey];
+  }
+
+  const url =
+    "https://nominatim.openstreetmap.org/reverse" +
+    "?format=jsonv2" +
+    "&lat=" + encodeURIComponent(lat) +
+    "&lon=" + encodeURIComponent(lng) +
+    "&addressdetails=1" +
+    "&accept-language=ja";
+
+  try{
+    const response = await fetch(url, {
+      headers: {
+        "Accept": "application/json"
+      }
+    });
+
+    if(!response.ok){
+      throw new Error("reverse geocoding failed");
+    }
+
+    const data = await response.json();
+    const a = data.address || {};
+
+    const pref = a.state || a.province || a.region || "";
+    const city =
+      a.city ||
+      a.town ||
+      a.village ||
+      a.municipality ||
+      a.county ||
+      "";
+    const area =
+      a.suburb ||
+      a.city_district ||
+      a.neighbourhood ||
+      a.quarter ||
+      a.hamlet ||
+      "";
+    const road = a.road || "";
+    const houseNumber = a.house_number || "";
+    const postcode = a.postcode || "";
+    const displayName = data.display_name || "";
+
+    const result = {
+      pref: pref,
+      city: city,
+      area: area,
+      road: road,
+      houseNumber: houseNumber,
+      postcode: postcode,
+      displayName: displayName
+    };
+
+    addressCache[cacheKey] = result;
+    saveAddressCache();
+
+    return result;
+  } catch(error){
+    console.warn("住所取得失敗:", error);
+    return {
+      pref: "",
+      city: "",
+      area: "",
+      road: "",
+      houseNumber: "",
+      postcode: "",
+      displayName: ""
+    };
+  }
+}
+
+function handleImageAndSave(){
+  const file = document.getElementById("imageInput").files[0];
+
+  if(file){
+    const reader = new FileReader();
+
+    reader.onload = function(e){
+      const img = new Image();
+
+      img.onload = function(){
+        const canvas = document.createElement("canvas");
+
+        const maxWidth = 300;
+        const scale = maxWidth / img.width;
+
+        canvas.width = maxWidth;
+        canvas.height = img.height * scale;
+
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+        const compressed = canvas.toDataURL("image/jpeg", 0.5);
+        saveRecord(compressed);
+      };
+
+      img.src = e.target.result;
+    };
+
+    reader.readAsDataURL(file);
+  } else {
+    saveRecord(null);
+  }
+}
+
+function getLocation() {
+  const isUpdateLocation = document.getElementById("updateLocationCheck").checked;
+
+  if(editIndex !== null && !isUpdateLocation){
+    if(currentLat !== null && currentLng !== null){
+      handleImageAndSave();
+      return;
+    }
+
+    currentLat = records[editIndex].latitude;
+    currentLng = records[editIndex].longitude;
+
+    if(
+      currentLat === null || currentLng === null ||
+      typeof currentLat !== "number" || typeof currentLng !== "number" ||
+      isNaN(currentLat) || isNaN(currentLng)
+    ){
+      alert("元の位置情報が不正です");
+      return;
+    }
+
+    handleImageAndSave();
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    function(position) {
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+
+      if(
+        lat === null || lng === null ||
+        typeof lat !== "number" || typeof lng !== "number" ||
+        isNaN(lat) || isNaN(lng)
+      ){
+        alert("位置情報の取得に失敗しました");
+        return;
+      }
+
+      currentLat = lat;
+      currentLng = lng;
+
+      handleImageAndSave();
+    },
+    function(){
+      alert("位置情報の取得に失敗しました");
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0
+    }
+  );
+}
+
+function renderHistory() {
+  const history = document.getElementById("history");
+  const loadMoreButton = document.getElementById("loadMoreButton");
+  const statusSummary = document.getElementById("statusSummary");
+  const displayInfo = document.getElementById("displayInfo");
+
+  if(!history) return;
+
+  history.innerHTML = "";
+
+  map.eachLayer(function(layer){
+    if(layer instanceof L.Marker){
+      map.removeLayer(layer);
+    }
+  });
+
+  const filterElement = document.getElementById("filterStatus");
+  const searchElement = document.getElementById("searchInput");
+
+  const filter = filterElement ? filterElement.value : "all";
+  const keyword = searchElement ? searchElement.value.toLowerCase() : "";
+
+  let count未確認 = 0;
+  let count掲示済 = 0;
+  let count要対応 = 0;
+
+  records.forEach(function(record){
+    const status = normalizeStatus(record.status);
+
+    if(status === "掲示済") count掲示済++;
+    else if(status === "要対応") count要対応++;
+    else count未確認++;
+  });
+
+  if(statusSummary){
+    statusSummary.innerHTML =
+      "<span style='color:#999;'>未確認：" + count未確認 + "件</span>　" +
+      "<span style='color:green;'>掲示済：" + count掲示済 + "件</span>　" +
+      "<span style='color:red;'>要対応：" + count要対応 + "件</span>";
+  }
+
+  const sortedRecords = [...records].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+
+  const filteredRecords = sortedRecords.filter(function(record){
+    const status = normalizeStatus(record.status);
+
+    if(
+      typeof record.latitude !== "number" ||
+      typeof record.longitude !== "number" ||
+      isNaN(record.latitude) ||
+      isNaN(record.longitude)
+    ){
+      console.warn("不正データスキップ:", record);
+      return false;
+    }
+
+    if(filter !== "all" && status !== filter) return false;
+    if(keyword && !(record.memo || "").toLowerCase().includes(keyword)) return false;
+
+    return true;
+  });
+
+  const visibleRecords = filteredRecords.slice(0, displayCount);
+
+  if(displayInfo){
+    displayInfo.innerHTML =
+      "<b>" + visibleRecords.length + "</b> / " +
+      filteredRecords.length + " 件表示";
+  }
+
+  visibleRecords.forEach(function(record){
+    const status = normalizeStatus(record.status);
+    const originalIndex = records.findIndex(r => r.updatedAt === record.updatedAt);
+
+    let statusColor = "#999";
+    if(status === "掲示済") statusColor = "green";
+    else if(status === "要対応") statusColor = "red";
+
+    const addressLine = [
+      record.pref || "",
+      record.city || "",
+      record.area || ""
+    ].filter(Boolean).join(" ");
+
+    const li = document.createElement("li");
+    li.innerHTML =
+      "<div style='border:1px solid #ccc; padding:12px; margin-bottom:12px; border-radius:10px; background:#ffffff; box-shadow:0 2px 4px rgba(0,0,0,0.1);'>" +
+      "<strong>" + (record.timestamp || "") + "</strong><br>" +
+      "ステータス: <b style='color:" + statusColor + ";'>" + status + "</b><br>" +
+      (addressLine ? "住所: " + addressLine + "<br>" : "") +
+      "緯度: " + record.latitude + "<br>" +
+      "経度: " + record.longitude + "<br>" +
+      "メモ: " + (record.memo || "") + "<br>" +
+      (record.image ? "<img src='" + record.image + "' style='width:100px; display:block; margin-top:5px;'>" : "") +
+      "<br>" +
+      "<button onclick='editRecord(" + originalIndex + ")'>編集</button> " +
+      "<button onclick='deleteRecord(" + originalIndex + ")'>削除</button>" +
+      "</div>";
+
+    history.appendChild(li);
+
+    let icon = greyIcon;
+    if(status === "掲示済") icon = greenIcon;
+    else if(status === "要対応") icon = redIcon;
+
+    const popupAddress = addressLine ? ("住所: " + addressLine + "<br>") : "";
+
+    L.marker([record.latitude, record.longitude], { icon: icon })
+      .addTo(map)
+      .bindPopup(
+        "<b>記録詳細</b><br>" +
+        "日時: " + (record.timestamp || "") + "<br>" +
+        "ステータス: " + status + "<br>" +
+        popupAddress +
+        "メモ: " + (record.memo || "") + "<br>" +
+        (record.image ? "<img src='" + record.image + "' style='width:100px;'>" : "")
+      );
+  });
+
+  if(tempMarker){
+    tempMarker.addTo(map);
+  }
+
+  if(loadMoreButton){
+    if(filteredRecords.length > displayCount){
+      loadMoreButton.style.display = "inline-block";
+    } else {
+      loadMoreButton.style.display = "none";
+    }
+  }
+}
+
+function resetAndRenderHistory(){
+  displayCount = DISPLAY_STEP;
+  renderHistory();
+}
+
+function loadMoreRecords(){
+  displayCount += DISPLAY_STEP;
+  renderHistory();
+}
+
+function deleteRecord(index){
+  if(confirm("削除しますか？")){
+    records.splice(index, 1);
+    localStorage.setItem("records", JSON.stringify(records));
+    renderHistory();
+    showToast("削除しました");
+  }
+}
+
+function editRecord(index){
+  const record = records[index];
+
+  document.getElementById("memoInput").value = record.memo || "";
+  document.getElementById("statusInput").value = normalizeStatus(record.status);
+  document.getElementById("updateLocationCheck").checked = false;
+
+  editIndex = index;
+  currentLat = record.latitude;
+  currentLng = record.longitude;
+
+  // 一覧から編集した場合は、保存後に一覧へ戻す
+  returnToScreenAfterSave = "list";
+
+  if(
+    typeof currentLat === "number" &&
+    typeof currentLng === "number" &&
+    !isNaN(currentLat) &&
+    !isNaN(currentLng)
+  ){
+    map.setView([currentLat, currentLng], 16);
+
+    if(tempMarker){
+      map.removeLayer(tempMarker);
+    }
+
+    tempMarker = L.marker([currentLat, currentLng]).addTo(map)
+      .bindPopup("現在位置").openPopup();
+  }
+
+  showScreen("record");
+  updateRecordModeLabel(true);
+
+  window.scrollTo({
+    top: 0,
+    behavior: "smooth"
+  });
+}
+
+async function saveRecord(imageData){
+  const lat = currentLat;
+  const lng = currentLng;
+  const time = new Date().toLocaleString();
+  const now = new Date().getTime();
+
+  const memoText = document.getElementById("memoInput").value;
+  const statusValue = normalizeStatus(document.getElementById("statusInput").value);
+
+  let existingImage = null;
+  const isEdit = (editIndex !== null);
+
+  if(isEdit && !imageData){
+    existingImage = records[editIndex].image;
+  }
+
+  showToast("住所取得中...");
+
+  const address = await reverseGeocode(lat, lng);
+
+  const record = {
+    latitude: lat,
+    longitude: lng,
+    timestamp: time,
+    memo: memoText,
+    status: statusValue,
+    updatedAt: now,
+    image: imageData || existingImage,
+    pref: address.pref || "",
+    city: address.city || "",
+    area: address.area || "",
+    road: address.road || "",
+    houseNumber: address.houseNumber || "",
+    postcode: address.postcode || "",
+    displayName: address.displayName || ""
+  };
+
+  if(isEdit){
+    records[editIndex] = record;
+    editIndex = null;
+  } else {
+    records.push(record);
+  }
+
+  localStorage.setItem("records", JSON.stringify(records));
+
+  document.getElementById("memoInput").value = "";
+  document.getElementById("statusInput").value = "未確認";
+  document.getElementById("imageInput").value = "";
+  document.getElementById("updateLocationCheck").checked = false;
+
+  if(
+    typeof lat === "number" &&
+    typeof lng === "number" &&
+    !isNaN(lat) &&
+    !isNaN(lng)
+  ){
+    map.setView([lat, lng], 16);
+  }
+
+  if(tempMarker){
+    map.removeLayer(tempMarker);
+    tempMarker = null;
+  }
+
+  renderHistory();
+  updateRecordModeLabel(false);
+
+  // 編集時は元の画面へ戻る
+  if(isEdit){
+    showScreen(returnToScreenAfterSave);
+  } else {
+    showScreen("record");
+  }
+
+  showToast(isEdit ? "更新しました" : "保存しました");
+
+  // 保存後は戻り先を初期化
+  returnToScreenAfterSave = "record";
+
+  window.scrollTo({
+    top: 0,
+    behavior: "smooth"
+  });
+}
+
+function importCSV(event){
+  const file = event.target.files[0];
+  if(!file) return;
+
+  const reader = new FileReader();
+
+  reader.onload = function(e){
+    const text = e.target.result;
+    const lines = text.split("\n");
+
+    lines.shift();
+
+    const newRecords = [];
+    let skipCount = 0;
+
+    lines.forEach(line => {
+      if(!line.trim()) return;
+
+      const cols = line.split(",");
+
+      const lat = parseFloat(cols[2]);
+      const lng = parseFloat(cols[3]);
+
+      if(cols.length < 4 || isNaN(lat) || isNaN(lng)){
+        console.warn("CSV不正データ:", cols);
+        skipCount++;
+        return;
+      }
+
+      const record = {
+        timestamp: cols[0] || "",
+        status: normalizeStatus(cols[1] || "未確認"),
+        latitude: lat,
+        longitude: lng,
+        memo: cols[4] || "",
+        updatedAt: new Date().getTime(),
+        pref: cols[5] || "",
+        city: cols[6] || "",
+        area: cols[7] || "",
+        road: cols[8] || "",
+        houseNumber: cols[9] || "",
+        postcode: cols[10] || "",
+        displayName: cols[11] || ""
+      };
+
+      newRecords.push(record);
+    });
+
+    if(skipCount > 0){
+      alert(skipCount + "件の不正データをスキップしました");
+    }
+
+    if(confirm("CSVデータを取り込みますか？")){
+      records = records.concat(newRecords);
+      localStorage.setItem("records", JSON.stringify(records));
+      renderHistory();
+      showToast("CSV取込完了");
+    }
+  };
+
+  reader.readAsText(file);
+}
+
+function exportCSV(){
+  if(records.length === 0){
+    alert("データがありません");
+    return;
+  }
+
+  let csv = "日時,ステータス,緯度,経度,メモ,都道府県,市区町村,地域,道路,番地,郵便番号,表示住所\n";
+
+  records.forEach(function(record){
+    const line = [
+      record.timestamp || "",
+      normalizeStatus(record.status),
+      record.latitude,
+      record.longitude,
+      (record.memo || "").replace(/,/g, " "),
+      (record.pref || "").replace(/,/g, " "),
+      (record.city || "").replace(/,/g, " "),
+      (record.area || "").replace(/,/g, " "),
+      (record.road || "").replace(/,/g, " "),
+      (record.houseNumber || "").replace(/,/g, " "),
+      (record.postcode || "").replace(/,/g, " "),
+      (record.displayName || "").replace(/,/g, " ")
+    ];
+
+    csv += line.join(",") + "\n";
+  });
+
+  const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
+  const blob = new Blob([bom, csv], { type: "text/csv" });
+
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "mihariban_records.csv";
+  a.click();
+
+  URL.revokeObjectURL(url);
+}
+
+function backupData(){
+  if(records.length === 0){
+    alert("データがありません");
+    return;
+  }
+
+  const json = JSON.stringify(records);
+  const blob = new Blob([json], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "mihariban_backup.json";
+  a.click();
+
+  URL.revokeObjectURL(url);
+}
+
+function restoreData(event){
+  const file = event.target.files[0];
+  if(!file) return;
+
+  const reader = new FileReader();
+
+  reader.onload = function(e){
+    try{
+      const data = JSON.parse(e.target.result);
+
+      if(confirm("現在のデータは上書きされます。よろしいですか？")){
+        records = data;
+        cleanInvalidRecords();
+        localStorage.setItem("records", JSON.stringify(records));
+        renderHistory();
+        showToast("復元完了");
+      }
+    } catch(err){
+      alert("ファイル形式が正しくありません");
+    }
+  };
+
+  reader.readAsText(file);
+}
+
+function showToast(message){
+  const toast = document.getElementById("toastMessage");
+  if(!toast) return;
+
+  toast.textContent = message;
+  toast.style.visibility = "visible";
+  toast.style.opacity = "1";
+
+  clearTimeout(toast._timeoutId);
+
+  toast._timeoutId = setTimeout(function(){
+    toast.style.opacity = "0";
+    toast.style.visibility = "hidden";
+  }, 2000);
+}
+
+function scrollToTop(){
+  window.scrollTo({
+    top: 0,
+    behavior: "smooth"
+  });
+}
+
+window.addEventListener("scroll", function(){
+  const scrollTopButton = document.getElementById("scrollTopButton");
+  if(!scrollTopButton) return;
+
+  if(window.scrollY > 200){
+    scrollTopButton.style.display = "block";
+  } else {
+    scrollTopButton.style.display = "none";
+  }
+});
+
+function exitApp(){
+  if(confirm("アプリを終了しますか？")){
+    window.close();
+    setTimeout(function(){
+      if(history.length > 1){
+        history.back();
+      } else {
+        alert("この環境では自動終了できません。ブラウザを閉じてください。");
+      }
+    }, 300);
+  }
+}
+
+map.on("click", function(e){
+  if(editIndex === null) return;
+
+  const lat = e.latlng.lat;
+  const lng = e.latlng.lng;
+
+  currentLat = lat;
+  currentLng = lng;
+
+  if(tempMarker){
+    map.removeLayer(tempMarker);
+  }
+
+  tempMarker = L.marker([lat, lng]).addTo(map)
+    .bindPopup("選択位置").openPopup();
+});
+</script>
+
+</body>
+</html>

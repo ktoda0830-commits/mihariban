@@ -1,7 +1,18 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
+
+<link rel="manifest" href="manifest.json">
+
+<meta name="theme-color" content="#f8f8f8">
+
+<!-- iPhone対応 -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="見貼り番">
+<link rel="apple-touch-icon" href="icon_192_bg.png">
+
+  <meta charset="UTF-8">
 <title>見貼り番</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
@@ -164,6 +175,21 @@ div {
   color: #666;
 }
 
+.guideText {
+  font-size: 13px;
+  color: #666;
+  margin-bottom: 10px;
+}
+
+.memoInput {
+  width: 100%;
+  border: 2px solid #333;
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 16px;
+  background: #fff;
+}
+
 </style>
 </head>
 <body>
@@ -195,13 +221,18 @@ div {
     <div class="subNote">
       編集ボタンから入った場合は「編集中」と表示されます。
     </div>
+  
+    <div class="guideText">
+      ①メモ入力 → ②分類選択 → ③写真（任意） → ④保存
+    </div>
+
   </div>
 
   <div id="recordSection" class="cardBox">
     <div class="recordBlockTitle">① 基本情報</div>
 
     <div style="margin-bottom:12px;">
-      <input type="text" id="memoInput" placeholder="場所や目印などのメモを入力" style="width:100%;">
+      <input type="text" id="memoInput" class="memoInput" placeholder="場所や目印を入力">
     </div>
 
     <div style="margin-bottom:12px;">
@@ -374,6 +405,24 @@ window.onload = function(){
   moveMapToCurrentLocation();
   updateRecordModeLabel(false);
 };
+
+let capturedLat = null;
+let capturedLng = null;
+
+document.getElementById("imageInput").addEventListener("change", function(){
+
+  if(!navigator.geolocation){
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(function(position){
+    capturedLat = position.coords.latitude;
+    capturedLng = position.coords.longitude;
+
+    console.log("撮影時GPS取得:", capturedLat, capturedLng);
+  });
+
+});
 
 function showScreen(screen){
   const menuScreen = document.getElementById("menuScreen");
@@ -840,6 +889,10 @@ function editRecord(index){
   document.getElementById("statusInput").value = normalizeStatus(record.status);
   document.getElementById("updateLocationCheck").checked = false;
 
+  document.getElementById("map").scrollIntoView({
+    behavior: "smooth"
+  });
+
   editIndex = index;
   currentLat = record.latitude;
   currentLng = record.longitude;
@@ -873,8 +926,9 @@ function editRecord(index){
 }
 
 async function saveRecord(imageData){
-  const lat = currentLat;
-  const lng = currentLng;
+  const lat = capturedLat || currentLat;
+  const lng = capturedLng || currentLng;
+
   const time = new Date().toLocaleString();
   const now = new Date().getTime();
 
